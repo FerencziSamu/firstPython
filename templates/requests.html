@@ -1,0 +1,10 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+    <h1>{{onerequest.title}}</h1>
+    <small>Written by {{onerequest.author}} on {{onerequest.create_date}}</small>
+    <hr>
+    <div>
+        {{onerequest.body | safe}}
+    </div>
+{% endblock %}

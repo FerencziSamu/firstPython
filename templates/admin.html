@@ -1,0 +1,10 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+  <h1>Leave Requests</h1>
+  <ul class="list-group">
+    {% for request in allrequests %}
+      <li class="list-group-item"><a href="request/{{request.id}}">{{request.title}}</a></li>
+    {% endfor %}
+  </ul>
+{% endblock %}
