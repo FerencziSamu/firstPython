@@ -7,4 +7,10 @@
       <li class="list-group-item"><a href="request/{{request.id}}">{{request.title}}</a></li>
     {% endfor %}
   </ul>
+  <h1>Registrations</h1>
+  <ul class="list-group">
+    {% for user in allusers %}
+      <li class="list-group-item">{{user.name}}</li>
+    {% endfor %}
+  </ul>
 {% endblock %}

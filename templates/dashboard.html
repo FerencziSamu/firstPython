@@ -1,32 +1,98 @@
 {% extends 'layout.html'%}
 
 {% block body %}
-    <h1>Dashboard <small> Welcome {{session.username}}</small></h1>
-    <a class="btn btn-success" href="/add_request">Add leave Request</a>
-    <hr>
-    <table class="table table-striped">
-        <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Author</th>
-            <th>Date</th>
-            <th></th>
-            <th></th>
-        </tr>
-        {% for request in allrequests %}
-        <tr>
-            <td>{{request.id}}</td>
-            <td>{{request.title}}</td>
-            <td>{{request.author}}</td>
-            <td>{{request.create_date}}</td>
-            <td><a href="edit_request/{{request.id}}" class="btn btn-default pull-right">Edit</a></td>
-            <td>
-                <form action="{{url_for('delete_request', id=request.id)}}" method="post">
-                    <input type="hidden" name="_method" value="DELETE">
-                    <input type="submit" value="Delete" class="btn btn-danger">
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
+<h1>Admin page
+    <small> Welcome, {{session.username}}!</small>
+</h1>
+<a class="btn btn-success" href="/add_request">Add leave Request</a>
+<hr>
+<h2>Requests</h2>
+<table class="table table-striped">
+    <tr>
+        <th>ID</th>
+        <th>Title</th>
+        <th>Author</th>
+        <th>Date</th>
+        <th></th>
+        <th></th>
+    </tr>
+    {% for request in allrequests %}
+    <tr>
+        <td>{{request.id}}</td>
+        <td>{{request.title}}</td>
+        <td>{{request.author}}</td>
+        <td>{{request.create_date}}</td>
+        <td><a href="edit_request/{{request.id}}" class="btn btn-default pull-right">Edit</a></td>
+        <td>
+            <form action="{{url_for('delete_request', id=request.id)}}" method="post">
+                <input type="hidden" name="_method" value="DELETE">
+                <input type="submit" value="Delete" class="btn btn-danger">
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+<h2>Pending registrations</h2>
+<table class="table table-striped">
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Date of registration</th>
+        <th></th>
+        <th></th>
+    </tr>
+    {% for user in registered %}
+    <tr>
+        <td>{{user.id}}</td>
+        <td>{{user.name}}</td>
+        <td>{{user.email}}</td>
+        <td>{{user.register_date}}</td>
+        <td>
+            <form action="{{url_for('approve_register', id=user.id)}}" method="post">
+                <input type="hidden" name="_method" value="APPROVE">
+                <input type="submit" value="Approve" class="btn btn-success pull-right">
+            </form>
+        </td>
+        <td>
+            <form action="{{url_for('reject_register', id=user.id)}}" method="post">
+                <input type="hidden" name="_method" value="REJECT">
+                <input type="submit" value="Reject" class="btn btn-danger">
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+<h2>Employee(s)</h2>
+<table class="table table-striped">
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Date of registration</th>
+        <th></th>
+        <th></th>
+    </tr>
+    {% for user in employees %}
+    <tr>
+        <td>{{user.id}}</td>
+        <td>{{user.name}}</td>
+        <td>{{user.email}}</td>
+        <td>{{user.register_date}}</td>
+        <td>
+            <form action="{{url_for('promote_user', id=user.id)}}" method="post">
+                <input type="hidden" name="_method" value="PROMOTE">
+                <input type="submit" value="Promote" class="btn btn-success pull-right">
+            </form>
+        </td>
+        <td>
+            <form action="{{url_for('demote_user', id=user.id)}}" method="post">
+                <input type="hidden" name="_method" value="DEMOTE">
+                <input type="submit" value="Demote" class="btn btn-danger">
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
 {% endblock %}

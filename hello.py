@@ -3,6 +3,7 @@ from flask import Flask, render_template, flash, redirect, url_for, session, req
 from flask_mysqldb import MySQL
 from wtforms import Form, StringField, TextAreaField, PasswordField, validators
 from passlib.hash import sha256_crypt
+from oauth2client.contrib.flask_util import UserOAuth2
 
 hello = Flask(__name__)
 
@@ -14,6 +15,17 @@ hello.config['MYSQL_DB'] = 'myflaskapp'
 hello.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 # init MySQL
 mysql = MySQL(hello)
+
+
+# Create Oauth User
+oauth2 = UserOAuth2()
+
+
+# Initalize the OAuth2 helper.
+# oauth2.init_app(
+#     hello,
+#     scopes=['email', 'profile'],
+#     authorize_callback=_request_user_info)
 
 
 # Check if user logged in
@@ -28,7 +40,7 @@ def is_logged_in(f):
     return wrap
 
 
-def try_admin(f):
+def is_admin(f):
     @wraps(f)
     def wrap(*args, **kwargs):
         if session.get('role') == 2:
@@ -39,28 +51,46 @@ def try_admin(f):
     return wrap
 
 
+def is_registered_user(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if session.get('role') != 0:
+            return f(*args, **kwargs)
+        else:
+            flash('You are not registered yet!', 'danger')
+            return redirect(url_for('home'))
+    return wrap
+
+
 # Home page
 @hello.route('/')
 def home():
     return render_template('home.html')
 
 
+# Registered Home page
+@hello.route('/registered')
+def registered():
+    return render_template('registered.html')
+
+
 # Calendar page
 @hello.route('/calendar')
+@is_registered_user
 def calendar():
     return render_template('calendar.html')
 
 
 # Employee page
 @hello.route('/employee')
+@is_registered_user
 def employee():
     return render_template('employee.html')
 
 
 # Admin page
 @hello.route('/admin')
-@is_logged_in
-@try_admin
+@is_admin
 def admin():
     # Create cursor
     cur = mysql.connection.cursor()
@@ -70,11 +100,16 @@ def admin():
 
     allrequests = cur.fetchall()
 
+    result_2 = cur.execute("SELECT * FROM users WHERE role=0")
+
+    allusers = cur.fetchall()
+
     if result > 0:
-        return render_template('admin.html', allrequests=allrequests)
+        return render_template('admin.html', allrequests=allrequests, allusers=allusers)
     else:
         msg = 'No Request Found'
         return render_template('admin.html', msg=msg)
+
     # Close connection
     cur.close()
 
@@ -129,7 +164,7 @@ def register():
 
         flash('You are now registered and can log in!', 'success')
 
-        return redirect(url_for('calendar'))
+        return redirect(url_for('home'))
     return render_template('register.html', form=form)
 
 
@@ -161,7 +196,7 @@ def login():
                 session['role'] = role
 
                 flash('You are now logged in!', 'success')
-                return redirect(url_for('calendar'))
+                return redirect(url_for('home'))
             else:
                 error = 'Invalid login'
                 return render_template('login.html', error=error)
@@ -195,11 +230,19 @@ def dashboard():
 
     allrequests = cur.fetchall()
 
-    if result > 0:
-        return render_template('dashboard.html', allrequests=allrequests)
+    result_2 = cur.execute("SELECT * FROM users WHERE role=0")
+
+    registered = cur.fetchall()
+
+    result_3 = cur.execute("SELECT * FROM users WHERE role=1")
+
+    employees = cur.fetchall()
+
+    if result != 0 or result_2 != 0 or result_3 != 0:
+        return render_template('dashboard.html', allrequests=allrequests, registered=registered, employees=employees)
     else:
         msg = 'No Request Found'
-        return render_template('dashboard.html', msg=msg)
+        return render_template('dashboard.html', msg=msg, registered=registered)
     # Close connection
     cur.close()
 
@@ -295,6 +338,89 @@ def delete_request(id):
     cur.close()
 
     flash('Request deleted!', 'success')
+
+    return redirect(url_for('dashboard'))
+
+
+# Approve Registration
+@hello.route('/approve_register/<string:id>', methods=['POST'])
+@is_admin
+def approve_register(id):
+    # Create cursor
+    cur = mysql.connection.cursor()
+
+    # Execute
+    cur.execute("UPDATE users SET role=1 WHERE id=%s", [id])
+
+    # Commit to DB
+    mysql.connection.commit()
+
+    # Close connection
+    cur.close()
+
+    flash('Registration approved!', 'success')
+    return redirect(url_for('dashboard'))
+
+
+# Reject Registration
+@hello.route('/reject_register/<string:id>', methods=['POST'])
+@is_admin
+def reject_register(id):
+    # Create cursor
+    cur = mysql.connection.cursor()
+
+    # Execute
+    cur.execute("DELETE FROM users WHERE id=%s", [id])
+
+    # Commit to DB
+    mysql.connection.commit()
+
+    # Close connection
+    cur.close()
+
+    flash('User rejected!', 'success')
+
+    return redirect(url_for('dashboard'))
+
+
+# Promote to admin
+@hello.route('/promote_user/<string:id>', methods=['POST'])
+@is_admin
+def promote_user(id):
+    # Create cursor
+    cur = mysql.connection.cursor()
+
+    # Execute
+    cur.execute("UPDATE users SET role=2 WHERE id=%s", [id])
+
+    # Commit to DB
+    mysql.connection.commit()
+
+    # Close connection
+    cur.close()
+
+    flash('Promoted to admin!', 'success')
+
+    return redirect(url_for('dashboard'))
+
+
+# Demote to registered
+@hello.route('/demote_user/<string:id>', methods=['POST'])
+@is_admin
+def demote_user(id):
+    # Create cursor
+    cur = mysql.connection.cursor()
+
+    # Execute
+    cur.execute("UPDATE users SET role=0 WHERE id=%s", [id])
+
+    # Commit to DB
+    mysql.connection.commit()
+
+    # Close connection
+    cur.close()
+
+    flash('Demoted to registered!', 'success')
 
     return redirect(url_for('dashboard'))
 
