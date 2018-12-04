@@ -4,6 +4,7 @@ from flask_mysqldb import MySQL
 from wtforms import Form, StringField, TextAreaField, PasswordField, validators
 from passlib.hash import sha256_crypt
 from oauth2client.contrib.flask_util import UserOAuth2
+from subprocess import call
 
 hello = Flask(__name__)
 
@@ -15,7 +16,6 @@ hello.config['MYSQL_DB'] = 'myflaskapp'
 hello.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 # init MySQL
 mysql = MySQL(hello)
-
 
 # Create Oauth User
 oauth2 = UserOAuth2()
@@ -37,6 +37,7 @@ def is_logged_in(f):
         else:
             flash('Unauthorized, please log in!', 'danger')
             return redirect(url_for('login'))
+
     return wrap
 
 
@@ -48,6 +49,7 @@ def is_admin(f):
         else:
             flash('You are not an administrator!', 'danger')
             return redirect(url_for('calendar'))
+
     return wrap
 
 
@@ -59,6 +61,7 @@ def is_registered_user(f):
         else:
             flash('You are not registered yet!', 'danger')
             return redirect(url_for('home'))
+
     return wrap
 
 
@@ -85,6 +88,14 @@ def calendar():
 @hello.route('/employee')
 @is_registered_user
 def employee():
+    return render_template('employee.html')
+
+
+# Employee page
+@hello.route('/employee/calendarWidget.py')
+@is_registered_user
+def employee_widget():
+    call(["python", "calendarWidget.py"])
     return render_template('employee.html')
 
 
