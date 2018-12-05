@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import Flask, render_template, flash, redirect, url_for, session, request, logging
 from flask_mysqldb import MySQL
-from wtforms import Form, StringField, TextAreaField, PasswordField, validators
+from wtforms import Form, StringField, TextAreaField, PasswordField, validators, DateField
 from passlib.hash import sha256_crypt
 from oauth2client.contrib.flask_util import UserOAuth2
 from subprocess import call
@@ -97,32 +97,6 @@ def employee():
 def employee_widget():
     call(["python", "calendarWidget.py"])
     return render_template('employee.html')
-
-
-# Admin page
-@hello.route('/admin')
-@is_admin
-def admin():
-    # Create cursor
-    cur = mysql.connection.cursor()
-
-    # Get Requests
-    result = cur.execute("SELECT * FROM requests")
-
-    allrequests = cur.fetchall()
-
-    result_2 = cur.execute("SELECT * FROM users WHERE role=0")
-
-    allusers = cur.fetchall()
-
-    if result > 0:
-        return render_template('admin.html', allrequests=allrequests, allusers=allusers)
-    else:
-        msg = 'No Request Found'
-        return render_template('admin.html', msg=msg)
-
-    # Close connection
-    cur.close()
 
 
 # Single Request
@@ -229,9 +203,9 @@ def logout():
     return redirect(url_for('login'))
 
 
-# Dashboard
-@hello.route('/dashboard')
-@is_logged_in
+# Admin page with dashboard html
+@hello.route('/admin')
+@is_admin
 def dashboard():
     # Create cursor
     cur = mysql.connection.cursor()
@@ -260,8 +234,8 @@ def dashboard():
 
 # Request Form Class
 class RequestForm(Form):
-    title = StringField('Title', [validators.Length(min=1, max=200)])
-    body = TextAreaField('Body', [validators.Length(min=30)])
+    start = DateField('Start day of the leave', format='%Y-%m-%d')
+    finish = DateField('Last day of the leave', format='%Y-%m-%d')
 
 
 # Add Request
@@ -270,14 +244,14 @@ class RequestForm(Form):
 def add_request():
     form = RequestForm(request.form)
     if request.method == 'POST' and form.validate():
-        title = form.title.data
-        body = form.body.data
+        start = form.start.data
+        finish = form.finish.data
 
         # Create Cursor
         cur = mysql.connection.cursor()
 
         # Execute
-        cur.execute("INSERT INTO requests(title, body, author) VALUES(%s, %s, %s)", (title, body, session['username']))
+        cur.execute("INSERT INTO requests(start, finish, author) VALUES(%s, %s, %s)", (start, finish, session['username']))
 
         # Commit to DB
         mysql.connection.commit()

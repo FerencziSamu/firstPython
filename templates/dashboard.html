@@ -10,18 +10,22 @@
 <table class="table table-striped">
     <tr>
         <th>ID</th>
-        <th>Title</th>
-        <th>Author</th>
-        <th>Date</th>
+        <th>Employee</th>
+        <th>Created</th>
+        <th>Start</th>
+        <th>Finish</th>
+        <th>State</th>
         <th></th>
         <th></th>
     </tr>
     {% for request in allrequests %}
     <tr>
         <td>{{request.id}}</td>
-        <td>{{request.title}}</td>
         <td>{{request.author}}</td>
         <td>{{request.create_date}}</td>
+        <td>{{request.start}}</td>
+        <td>{{request.finish}}</td>
+        <td>{{request.state}}</td>
         <td><a href="edit_request/{{request.id}}" class="btn btn-default pull-right">Edit</a></td>
         <td>
             <form action="{{url_for('delete_request', id=request.id)}}" method="post">

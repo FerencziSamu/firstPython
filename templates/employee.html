@@ -1,11 +1,14 @@
 {% extends 'layout.html' %}
 
 {% block body %}
-    <div class="jumbotron text-center">
-        <h1>Employee mode</h1>
-        <p class="lead">You are eligible to review the calendar and make requests!</p>
+<div class="jumbotron text-center">
+    <h1>Employee mode</h1>
+    <p class="lead">You are eligible to review the calendar and make requests!</p>
+</div>
+  <form action="/employee/calendarWidget.py" method="GET">
+    <div class="alert alert-warning" role="alert">
+        <input type="submit" value="Select the day!">
+        <--- Under development!
     </div>
-    <form action = "/employee/calendarWidget.py" method = "GET">
-   <input type = "submit" value = "Run the Program!!!">
-    </form>
+</form>
 {% endblock %}
