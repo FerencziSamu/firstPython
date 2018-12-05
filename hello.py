@@ -22,13 +22,6 @@ mysql = MySQL(hello)
 oauth2 = UserOAuth2()
 
 
-# Initialize the OAuth2 helper.
-# oauth2.init_app(
-#     hello,
-#     scopes=['email', 'profile'],
-#     authorize_callback=_request_user_info)
-
-
 # Check if user logged in
 def is_logged_in(f):
     @wraps(f)
@@ -278,6 +271,8 @@ def approve_request(id):
 
     # Execute
     cur.execute("UPDATE requests SET state='approved' WHERE id=%s", [id])
+    # cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [session['username']]) Req-author needed
+    # cur.execute("SELECT requested_holidays FROM users WHERE username=%s", [session('username')]) SessionCookies stuff
 
     # Commit to DB
     mysql.connection.commit()
@@ -389,7 +384,7 @@ def demote_user(id):
     # Close connection
     cur.close()
 
-    flash('Demoted to registered!', 'success')
+    flash('And the employee finds him/herself again as someone who needs to be approved, nice job!', 'success')
 
     return redirect(url_for('dashboard'))
 
