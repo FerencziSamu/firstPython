@@ -201,11 +201,8 @@ def dashboard():
 
     employees = cur.fetchall()
 
-    if result != 0 or result_2 != 0 or result_3 != 0:
-        return render_template('dashboard.html', allrequests=allrequests, registered=registered, employees=employees)
-    else:
-        msg = 'No Request Found'
-        return render_template('dashboard.html', msg=msg, registered=registered)
+    return render_template('dashboard.html', allrequests=allrequests, registered=registered, employees=employees)
+
     # Close connection
     cur.close()
 
