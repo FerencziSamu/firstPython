@@ -249,27 +249,6 @@ def add_request():
     return render_template('add_request.html', form=form)
 
 
-# Delete request
-@hello.route('/delete_request/<string:id>', methods=['POST'])
-@is_admin
-def delete_request(id):
-    # Create cursor
-    cur = mysql.connection.cursor()
-
-    # Execute
-    cur.execute("DELETE FROM requests WHERE id=%s", [id])
-
-    # Commit to DB
-    mysql.connection.commit()
-
-    # Close connection
-    cur.close()
-
-    flash('Request deleted!', 'success')
-
-    return redirect(url_for('dashboard'))
-
-
 # Approve Registration
 @hello.route('/approve_register/<string:id>', methods=['POST'])
 @is_admin
@@ -360,6 +339,7 @@ def reject_request(id):
 
     # Execute
     cur.execute("DELETE FROM requests WHERE id=%s", [id])
+    cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [session['username']])
 
     # Commit to DB
     mysql.connection.commit()
