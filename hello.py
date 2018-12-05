@@ -5,6 +5,7 @@ from wtforms import Form, StringField, PasswordField, validators, DateField
 from passlib.hash import sha256_crypt
 from oauth2client.contrib.flask_util import UserOAuth2
 from subprocess import call
+from _datetime import date
 
 hello = Flask(__name__)
 
@@ -218,15 +219,23 @@ class RequestForm(Form):
 @is_registered_user
 def add_request():
     form = RequestForm(request.form)
+
     if request.method == 'POST' and form.validate():
         start = form.start.data
         finish = form.finish.data
+        date_1 = date(start.year, start.month, start.day)
+        date_2 = date(finish.year, finish.month, finish.day)
+        number_of_days = (date_2 - date_1).days
 
         # Create Cursor
         cur = mysql.connection.cursor()
 
         # Execute
-        cur.execute("INSERT INTO requests(start, finish, author) VALUES(%s, %s, %s)", (start, finish, session['username']))
+        cur.execute("INSERT INTO requests(start, finish, author) VALUES(%s, %s, %s)",
+                    (start, finish, session['username']))
+
+        cur.execute("UPDATE users SET requested_holidays=%s WHERE username=%s",
+                    ([number_of_days], [session['username']]))
 
         # Commit to DB
         mysql.connection.commit()
