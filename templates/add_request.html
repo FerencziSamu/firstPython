@@ -1,15 +1,21 @@
 {% extends 'layout.html' %}
 
 {% block body %}
-  <h1>New Request</h1>
-  {% from "includes/_formhelpers.html" import render_field %}
-  <form method="POST" action="">
+<h1>New Request</h1>
+{% from "includes/_formhelpers.html" import render_field %}
+<form method="POST" action="">
     <div class="form-group">
-      {{ render_field(form.start, class_="form-control") }}
+        {{ render_field(form.start, class_="form-control") }}
     </div>
     <div class="form-group">
-      {{ render_field(form.finish, class_="form-control") }}
+        {{ render_field(form.finish, class_="form-control") }}
     </div>
     <p><input class="btn btn-primary" type="submit" value="Submit"></p>
-  </form>
+</form>
+<form action="/employee/calendarWidget.py" method="GET">
+    <div class="alert alert-warning" role="alert">
+        <input type="submit" value="Select the day!">
+        <--- Under development!
+    </div>
+</form>
 {% endblock %}

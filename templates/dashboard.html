@@ -17,6 +17,7 @@
         <th>State</th>
         <th></th>
         <th></th>
+        <th></th>
     </tr>
     {% for request in allrequests %}
     <tr>
@@ -26,11 +27,22 @@
         <td>{{request.start}}</td>
         <td>{{request.finish}}</td>
         <td>{{request.state}}</td>
-        <td><a href="edit_request/{{request.id}}" class="btn btn-default pull-right">Edit</a></td>
         <td>
-            <form action="{{url_for('delete_request', id=request.id)}}" method="post">
-                <input type="hidden" name="_method" value="DELETE">
-                <input type="submit" value="Delete" class="btn btn-danger">
+            <form action="{{url_for('approve_request', id=request.id)}}" method="post">
+                <input type="hidden" name="_method" value="APPROVE">
+                <input type="submit" value="Approve" class="btn btn-success pull-right">
+            </form>
+        </td>
+        <td>
+            <form action="{{url_for('pending_request', id=request.id)}}" method="post">
+                <input type="hidden" name="_method" value="PENDING">
+                <input type="submit" value="Pending" class="btn btn-warning">
+            </form>
+        </td>
+        <td>
+            <form action="{{url_for('reject_request', id=request.id)}}" method="post">
+                <input type="hidden" name="_method" value="REJECT">
+                <input type="submit" value="Reject" class="btn btn-danger">
             </form>
         </td>
     </tr>

@@ -1,7 +1,7 @@
 from functools import wraps
-from flask import Flask, render_template, flash, redirect, url_for, session, request, logging
+from flask import Flask, render_template, flash, redirect, url_for, session, request
 from flask_mysqldb import MySQL
-from wtforms import Form, StringField, TextAreaField, PasswordField, validators, DateField
+from wtforms import Form, StringField, PasswordField, validators, DateField
 from passlib.hash import sha256_crypt
 from oauth2client.contrib.flask_util import UserOAuth2
 from subprocess import call
@@ -21,7 +21,7 @@ mysql = MySQL(hello)
 oauth2 = UserOAuth2()
 
 
-# Initalize the OAuth2 helper.
+# Initialize the OAuth2 helper.
 # oauth2.init_app(
 #     hello,
 #     scopes=['email', 'profile'],
@@ -48,7 +48,7 @@ def is_admin(f):
             return f(*args, **kwargs)
         else:
             flash('You are not an administrator!', 'danger')
-            return redirect(url_for('calendar'))
+            return redirect(url_for('home'))
 
     return wrap
 
@@ -77,13 +77,6 @@ def registered():
     return render_template('registered.html')
 
 
-# Calendar page
-@hello.route('/calendar')
-@is_registered_user
-def calendar():
-    return render_template('calendar.html')
-
-
 # Employee page
 @hello.route('/employee')
 @is_registered_user
@@ -97,21 +90,6 @@ def employee():
 def employee_widget():
     call(["python", "calendarWidget.py"])
     return render_template('employee.html')
-
-
-# Single Request
-@hello.route('/request/<string:id>/')
-@is_logged_in
-def leaverequest(id):
-    # Create cursor
-    cur = mysql.connection.cursor()
-
-    # Get Request
-    result = cur.execute("SELECT * FROM requests WHERE id =%s", [id])
-
-    onerequest = cur.fetchone()
-
-    return render_template('requests.html', onerequest=onerequest)
 
 
 # Register Form Class
@@ -240,7 +218,7 @@ class RequestForm(Form):
 
 # Add Request
 @hello.route('/add_request', methods=['GET', 'POST'])
-@is_logged_in
+@is_registered_user
 def add_request():
     form = RequestForm(request.form)
     if request.method == 'POST' and form.validate():
@@ -260,55 +238,14 @@ def add_request():
         cur.close()
 
         flash('Request created', 'success')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('add_request'))
 
     return render_template('add_request.html', form=form)
 
 
-# Edit Request
-@hello.route('/edit_request/<string:id>', methods=['GET', 'POST'])
-@is_logged_in
-def edit_request(id):
-    # Create cursor
-    cur = mysql.connection.cursor()
-
-    # Get the request by id
-    result = cur.execute("SELECT * FROM requests WHERE id = %s", [id])
-
-    onerequest = cur.fetchone()
-
-    # Get form
-    form = RequestForm(request.form)
-
-    # Populate request form fields
-    form.title.data = onerequest['title']
-    form.body.data = onerequest['body']
-
-    if request.method == 'POST' and form.validate():
-        title = request.form['title']
-        body = request.form['body']
-
-        # Create Cursor
-        cur = mysql.connection.cursor()
-
-        # Execute
-        cur.execute("UPDATE requests SET title=%s, body=%s WHERE id=%s ", (title, body, id))
-
-        # Commit to DB
-        mysql.connection.commit()
-
-        # Close connection
-        cur.close()
-
-        flash('Request updated!', 'success')
-        return redirect(url_for('dashboard'))
-
-    return render_template('edit_request.html', form=form)
-
-
 # Delete request
 @hello.route('/delete_request/<string:id>', methods=['POST'])
-@is_logged_in
+@is_admin
 def delete_request(id):
     # Create cursor
     cur = mysql.connection.cursor()
@@ -347,6 +284,46 @@ def approve_register(id):
     return redirect(url_for('dashboard'))
 
 
+# Approve Request
+@hello.route('/approve_request/<string:id>', methods=['POST'])
+@is_admin
+def approve_request(id):
+    # Create cursor
+    cur = mysql.connection.cursor()
+
+    # Execute
+    cur.execute("UPDATE requests SET state='approved' WHERE id=%s", [id])
+
+    # Commit to DB
+    mysql.connection.commit()
+
+    # Close connection
+    cur.close()
+
+    flash('Request approved!', 'success')
+    return redirect(url_for('dashboard'))
+
+
+# Postpone Request
+@hello.route('/pending_request/<string:id>', methods=['POST'])
+@is_admin
+def pending_request(id):
+    # Create cursor
+    cur = mysql.connection.cursor()
+
+    # Execute
+    cur.execute("UPDATE requests SET state='pending' WHERE id=%s", [id])
+
+    # Commit to DB
+    mysql.connection.commit()
+
+    # Close connection
+    cur.close()
+
+    flash('Request postponed!', 'success')
+    return redirect(url_for('dashboard'))
+
+
 # Reject Registration
 @hello.route('/reject_register/<string:id>', methods=['POST'])
 @is_admin
@@ -364,6 +341,27 @@ def reject_register(id):
     cur.close()
 
     flash('User rejected!', 'success')
+
+    return redirect(url_for('dashboard'))
+
+
+# Reject Request
+@hello.route('/reject_request/<string:id>', methods=['POST'])
+@is_admin
+def reject_request(id):
+    # Create cursor
+    cur = mysql.connection.cursor()
+
+    # Execute
+    cur.execute("DELETE FROM requests WHERE id=%s", [id])
+
+    # Commit to DB
+    mysql.connection.commit()
+
+    # Close connection
+    cur.close()
+
+    flash('Request rejected!', 'success')
 
     return redirect(url_for('dashboard'))
 
