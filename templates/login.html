@@ -11,6 +11,7 @@
       <label>Password</label>
       <input type="password" name="password" class="form-control" value={{request.form.password}}>
     </div>
-    <button type="submit" class="btn btn-primary">Submit</button>
+    <button type="submit" class="btn btn-primary">Log in!</button>
   </form>
+  <a href="{{auth_url}}" class="btn btn-primary btn-block" style="padding: 15px 0;">Login with Google</a>
 {% endblock %}

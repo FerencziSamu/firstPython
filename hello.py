@@ -1,15 +1,114 @@
 from functools import wraps
-from flask import Flask, render_template, flash, redirect, url_for, session, request, current_app
+from flask import Flask, render_template, flash, redirect, url_for, session, request
 from flask_mysqldb import MySQL
 from wtforms import Form, StringField, PasswordField, validators, DateField
 from passlib.hash import sha256_crypt
-from oauth2client.contrib.flask_util import UserOAuth2
 from subprocess import call
 from _datetime import date
-import httplib2, json
+from flask_login import LoginManager, login_user, current_user
+from requests_oauthlib import OAuth2Session
+from requests.exceptions import HTTPError
+import os
+import json
+
+# Google auth try
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+
+class Auth:
+    """Google Project Credentials"""
+    CLIENT_ID = '435293161538-4vhaau49erplvbs2pcdv9fsbob2aa726.apps.googleusercontent.com'
+    CLIENT_SECRET = 'CY1_FcYf4fbqwpwj3jzUL9bG'
+    REDIRECT_URI = 'http://127.0.0.1:5000/gCallback'
+    AUTH_URI = 'https://accounts.google.com/o/oauth2/auth'
+    TOKEN_URI = 'https://accounts.google.com/o/oauth2/token'
+    USER_INFO = 'https://www.googleapis.com/userinfo/v2/me'
+    SCOPE = ['profile', 'email']
+
+
+class Config:
+    """Base config"""
+    APP_NAME = "Holiday Manager"
+    SECRET_KEY = os.environ.get("SECRET_KEY") or "somethingsecret"
 
 
 hello = Flask(__name__)
+
+login_manager = LoginManager(hello)
+login_manager.login_view = "login"
+login_manager.session_protection = "strong"
+
+
+@hello.route('/gCallback')
+def callback():
+    if current_user is not None and current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if 'error' in request.args:
+        if request.args.get('error') == 'access_denied':
+            return 'You denied access.'
+        return 'Error encountered.'
+    if 'code' not in request.args and 'state' not in request.args:
+        return redirect(url_for('login'))
+    else:
+        google = get_google_auth(state=session['oauth_state'])
+        try:
+            token = google.fetch_token(
+                Auth.TOKEN_URI,
+                client_secret=Auth.CLIENT_SECRET,
+                authorization_response=request.url)
+        except HTTPError:
+            return 'HTTPError occurred.'
+        google = get_google_auth(token=token)
+        resp = google.get(Auth.USER_INFO)
+        if resp.status_code == 200:
+            user_data = resp.json()
+            email = user_data['email']
+
+            # Create cursor
+            cur = mysql.connection.cursor()
+
+            # Execute Query
+            user = cur.execute("SELECT * FROM users WHERE email == %s", email)
+
+            flash('You are now registered and can log in!', 'success')
+
+            tokens = json.dumps(token)
+            gid = user_data['id']
+
+            if user is None:
+                name = user_data['name']
+                print(token)
+
+                cur.execute("INSERT INTO users(name, email, id, token) VALUES(%s, %s, %s, %s)",
+                            (name, email, gid, tokens))
+
+            cur.execute("INSERT INTO users(id, token) VALUES(%s, %s)",
+                        (gid, tokens))
+            mysql.connection.commit()
+
+            user = cur.execute("SELECT * FROM users WHERE email == %s", email)
+
+            cur.close()
+
+            login_user(user)
+            return redirect(url_for('index'))
+        return 'Could not fetch your information.'
+
+
+def get_google_auth(state=None, token=None):
+    if token:
+        return OAuth2Session(Auth.CLIENT_ID, token=token)
+    if state:
+        return OAuth2Session(
+            Auth.CLIENT_ID,
+            state=state,
+            redirect_uri=Auth.REDIRECT_URI)
+    oauth = OAuth2Session(
+        Auth.CLIENT_ID,
+        redirect_uri=Auth.REDIRECT_URI,
+        scope=Auth.SCOPE)
+    return oauth
+
 
 # Config MySQL
 hello.config['MYSQL_HOST'] = '192.168.0.102'
@@ -17,36 +116,8 @@ hello.config['MYSQL_USER'] = 'fin'
 hello.config['MYSQL_PASSWORD'] = 'password'
 hello.config['MYSQL_DB'] = 'myflaskapp'
 hello.config['MYSQL_CURSORCLASS'] = 'DictCursor'
-# init MySQL
+# Init MySQL
 mysql = MySQL(hello)
-
-# Create Oauth User
-oauth2 = UserOAuth2()
-
-
-# def _request_user_info(credentials):
-#     """
-#     Makes an HTTP request to the Google+ API to retrieve the user's basic
-#     profile information, including full name and photo, and stores it in the
-#     Flask session.
-#     """
-#     http = httplib2.Http()
-#     credentials.authorize(http)
-#     resp, content = http.request(
-#         'https://www.googleapis.com/plus/v1/people/me')
-#
-#     if resp.status != 200:
-#         current_app.logger.error(
-#             "Error while obtaining user profile: \n%s: %s", resp, content)
-#         return None
-#     session['profile'] = json.loads(content.decode('utf-8'))
-#
-#
-# # Initalize the OAuth2 helper.
-# oauth2.init_app(
-#     hello,
-#     scopes=['email', 'profile'],
-#     authorize_callback=_request_user_info)
 
 
 # Check if user logged in
@@ -62,18 +133,6 @@ def is_logged_in(f):
     return wrap
 
 
-def is_admin(f):
-    @wraps(f)
-    def wrap(*args, **kwargs):
-        if session.get('role') == 2:
-            return f(*args, **kwargs)
-        else:
-            flash('You are not an administrator!', 'danger')
-            return redirect(url_for('home'))
-
-    return wrap
-
-
 def is_registered_user(f):
     @wraps(f)
     def wrap(*args, **kwargs):
@@ -81,6 +140,18 @@ def is_registered_user(f):
             return f(*args, **kwargs)
         else:
             flash('You are not registered yet!', 'danger')
+            return redirect(url_for('home'))
+
+    return wrap
+
+
+def is_admin(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if session.get('role') == 2:
+            return f(*args, **kwargs)
+        else:
+            flash('You are not an administrator!', 'danger')
             return redirect(url_for('home'))
 
     return wrap
@@ -189,7 +260,14 @@ def login():
         else:
             error = 'Username not found!'
             return render_template('login.html', error=error)
-
+    else:
+        if current_user.is_authenticated:
+            return redirect(url_for('index'))
+        google = get_google_auth()
+        auth_url, state = google.authorization_url(
+            Auth.AUTH_URI, access_type='offline')
+        session['oauth_state'] = state
+        return render_template('login.html', auth_url=auth_url)
     return render_template('login.html')
 
 
@@ -210,15 +288,15 @@ def dashboard():
     cur = mysql.connection.cursor()
 
     # Get Requests
-    result = cur.execute("SELECT * FROM requests")
+    cur.execute("SELECT * FROM requests")
 
     allrequests = cur.fetchall()
 
-    result_2 = cur.execute("SELECT * FROM users WHERE role=0")
+    cur.execute("SELECT * FROM users WHERE role=0")
 
     registered = cur.fetchall()
 
-    result_3 = cur.execute("SELECT * FROM users WHERE role=1")
+    cur.execute("SELECT * FROM users WHERE role=1")
 
     employees = cur.fetchall()
 
@@ -298,8 +376,10 @@ def approve_request(id):
 
     # Execute
     cur.execute("UPDATE requests SET state='approved' WHERE id=%s", [id])
-    # cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [session['username']]) Req-author needed
-    # cur.execute("SELECT requested_holidays FROM users WHERE username=%s", [session('username')]) SessionCookies stuff
+    cur.execute("SELECT author FROM requests WHERE id=%s", [id])
+    name = cur.fetchone()
+    print(name)
+    cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [name])
 
     # Commit to DB
     mysql.connection.commit()
@@ -361,7 +441,6 @@ def reject_request(id):
 
     # Execute
     cur.execute("DELETE FROM requests WHERE id=%s", [id])
-    cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [session['username']])
 
     # Commit to DB
     mysql.connection.commit()
@@ -411,7 +490,9 @@ def demote_user(id):
     # Close connection
     cur.close()
 
-    flash('And the employee finds him/herself again as someone who needs to be approved, nice job!', 'success')
+    flash(
+        'And the employee finds him/herself again in a position of someone whose application needs to be '
+        'approved, nice job!', 'success')
 
     return redirect(url_for('dashboard'))
 
