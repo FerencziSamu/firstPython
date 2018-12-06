@@ -6,8 +6,6 @@ from passlib.hash import sha256_crypt
 from oauth2client.contrib.flask_util import UserOAuth2
 from subprocess import call
 from _datetime import date
-import httplib2, json
-
 
 hello = Flask(__name__)
 
@@ -19,34 +17,6 @@ hello.config['MYSQL_DB'] = 'myflaskapp'
 hello.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 # init MySQL
 mysql = MySQL(hello)
-
-# Create Oauth User
-oauth2 = UserOAuth2()
-
-
-# def _request_user_info(credentials):
-#     """
-#     Makes an HTTP request to the Google+ API to retrieve the user's basic
-#     profile information, including full name and photo, and stores it in the
-#     Flask session.
-#     """
-#     http = httplib2.Http()
-#     credentials.authorize(http)
-#     resp, content = http.request(
-#         'https://www.googleapis.com/plus/v1/people/me')
-#
-#     if resp.status != 200:
-#         current_app.logger.error(
-#             "Error while obtaining user profile: \n%s: %s", resp, content)
-#         return None
-#     session['profile'] = json.loads(content.decode('utf-8'))
-#
-#
-# # Initalize the OAuth2 helper.
-# oauth2.init_app(
-#     hello,
-#     scopes=['email', 'profile'],
-#     authorize_callback=_request_user_info)
 
 
 # Check if user logged in
@@ -62,18 +32,6 @@ def is_logged_in(f):
     return wrap
 
 
-def is_admin(f):
-    @wraps(f)
-    def wrap(*args, **kwargs):
-        if session.get('role') == 2:
-            return f(*args, **kwargs)
-        else:
-            flash('You are not an administrator!', 'danger')
-            return redirect(url_for('home'))
-
-    return wrap
-
-
 def is_registered_user(f):
     @wraps(f)
     def wrap(*args, **kwargs):
@@ -81,6 +39,18 @@ def is_registered_user(f):
             return f(*args, **kwargs)
         else:
             flash('You are not registered yet!', 'danger')
+            return redirect(url_for('home'))
+
+    return wrap
+
+
+def is_admin(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if session.get('role') == 2:
+            return f(*args, **kwargs)
+        else:
+            flash('You are not an administrator!', 'danger')
             return redirect(url_for('home'))
 
     return wrap
@@ -210,15 +180,15 @@ def dashboard():
     cur = mysql.connection.cursor()
 
     # Get Requests
-    result = cur.execute("SELECT * FROM requests")
+    cur.execute("SELECT * FROM requests")
 
     allrequests = cur.fetchall()
 
-    result_2 = cur.execute("SELECT * FROM users WHERE role=0")
+    cur.execute("SELECT * FROM users WHERE role=0")
 
     registered = cur.fetchall()
 
-    result_3 = cur.execute("SELECT * FROM users WHERE role=1")
+    cur.execute("SELECT * FROM users WHERE role=1")
 
     employees = cur.fetchall()
 
@@ -298,8 +268,10 @@ def approve_request(id):
 
     # Execute
     cur.execute("UPDATE requests SET state='approved' WHERE id=%s", [id])
-    # cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [session['username']]) Req-author needed
-    # cur.execute("SELECT requested_holidays FROM users WHERE username=%s", [session('username')]) SessionCookies stuff
+    cur.execute("SELECT author FROM requests WHERE id=%s", [id])
+    name = cur.fetchone()
+    print(name)
+    cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [name])
 
     # Commit to DB
     mysql.connection.commit()
@@ -361,7 +333,6 @@ def reject_request(id):
 
     # Execute
     cur.execute("DELETE FROM requests WHERE id=%s", [id])
-    cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [session['username']])
 
     # Commit to DB
     mysql.connection.commit()
@@ -410,8 +381,9 @@ def demote_user(id):
 
     # Close connection
     cur.close()
-
-    flash('And the employee finds him/herself again as someone who needs to be approved, nice job!', 'success')
+    
+    flash('And the employee finds him/herself again in a position of someone whose application needs to be '
+          'approved, nice job!', 'success')
 
     return redirect(url_for('dashboard'))
 
