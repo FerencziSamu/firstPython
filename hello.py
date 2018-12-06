@@ -1,11 +1,13 @@
 from functools import wraps
-from flask import Flask, render_template, flash, redirect, url_for, session, request
+from flask import Flask, render_template, flash, redirect, url_for, session, request, current_app
 from flask_mysqldb import MySQL
 from wtforms import Form, StringField, PasswordField, validators, DateField
 from passlib.hash import sha256_crypt
 from oauth2client.contrib.flask_util import UserOAuth2
 from subprocess import call
 from _datetime import date
+import httplib2, json
+
 
 hello = Flask(__name__)
 
@@ -20,6 +22,31 @@ mysql = MySQL(hello)
 
 # Create Oauth User
 oauth2 = UserOAuth2()
+
+
+# def _request_user_info(credentials):
+#     """
+#     Makes an HTTP request to the Google+ API to retrieve the user's basic
+#     profile information, including full name and photo, and stores it in the
+#     Flask session.
+#     """
+#     http = httplib2.Http()
+#     credentials.authorize(http)
+#     resp, content = http.request(
+#         'https://www.googleapis.com/plus/v1/people/me')
+#
+#     if resp.status != 200:
+#         current_app.logger.error(
+#             "Error while obtaining user profile: \n%s: %s", resp, content)
+#         return None
+#     session['profile'] = json.loads(content.decode('utf-8'))
+#
+#
+# # Initalize the OAuth2 helper.
+# oauth2.init_app(
+#     hello,
+#     scopes=['email', 'profile'],
+#     authorize_callback=_request_user_info)
 
 
 # Check if user logged in
