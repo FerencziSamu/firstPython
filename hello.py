@@ -499,4 +499,4 @@ def demote_user(id):
 
 if __name__ == '__main__':
     hello.secret_key = b'jz\x8dB\xf3\xeb\n\xe3\x9f\x9c\xf7\x8e\xc3"\x8d\x13\xf2\xb9\xd8QxQ6\xcf'
-    hello.run(debug=True)
+    hello.run(debug=True, ssl_context='adhoc')
