@@ -1,9 +1,8 @@
 from functools import wraps
-from flask import Flask, render_template, flash, redirect, url_for, session, request, current_app
+from flask import Flask, render_template, flash, redirect, url_for, session, request
 from flask_mysqldb import MySQL
 from wtforms import Form, StringField, PasswordField, validators, DateField
 from passlib.hash import sha256_crypt
-from oauth2client.contrib.flask_util import UserOAuth2
 from subprocess import call
 from _datetime import date
 
@@ -15,6 +14,7 @@ hello.config['MYSQL_USER'] = 'fin'
 hello.config['MYSQL_PASSWORD'] = 'password'
 hello.config['MYSQL_DB'] = 'myflaskapp'
 hello.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+
 # init MySQL
 mysql = MySQL(hello)
 
@@ -32,6 +32,7 @@ def is_logged_in(f):
     return wrap
 
 
+# Check if user registered
 def is_registered_user(f):
     @wraps(f)
     def wrap(*args, **kwargs):
@@ -44,6 +45,7 @@ def is_registered_user(f):
     return wrap
 
 
+# Check if user is admin
 def is_admin(f):
     @wraps(f)
     def wrap(*args, **kwargs):
@@ -163,15 +165,6 @@ def login():
     return render_template('login.html')
 
 
-# Logout
-@hello.route('/logout')
-@is_logged_in
-def logout():
-    session.clear()
-    flash('You are now logged out!', 'success')
-    return redirect(url_for('login'))
-
-
 # Admin page with dashboard html
 @hello.route('/admin')
 @is_admin
@@ -271,7 +264,7 @@ def approve_request(id):
     cur.execute("SELECT author FROM requests WHERE id=%s", [id])
     name = cur.fetchone()
     print(name)
-    cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [name])
+    # cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [name])
 
     # Commit to DB
     mysql.connection.commit()
@@ -381,11 +374,20 @@ def demote_user(id):
 
     # Close connection
     cur.close()
-    
+
     flash('And the employee finds him/herself again in a position of someone whose application needs to be '
           'approved, nice job!', 'success')
 
     return redirect(url_for('dashboard'))
+
+
+# Logout
+@hello.route('/logout')
+@is_logged_in
+def logout():
+    session.clear()
+    flash('You are now logged out!', 'success')
+    return redirect(url_for('login'))
 
 
 if __name__ == '__main__':
