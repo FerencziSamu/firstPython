@@ -1,3 +1,4 @@
+mysql
 passlib
 wtforms
 flask

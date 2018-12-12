@@ -1,19 +1,21 @@
 from functools import wraps
 from flask import Flask, render_template, flash, redirect, url_for, session, request
-from flask_mysqldb import MySQL
+# from flask_mysqldb import MySQL
 from wtforms import Form, StringField, PasswordField, validators, DateField
 from passlib.hash import sha256_crypt
 from subprocess import call
 from _datetime import date
+from flaskext.mysql import MySQL
 
 hello = Flask(__name__)
 
 # Config MySQL
-hello.config['MYSQL_HOST'] = '192.168.0.102'
-hello.config['MYSQL_USER'] = 'fin'
-hello.config['MYSQL_PASSWORD'] = 'password'
-hello.config['MYSQL_DB'] = 'myflaskapp'
-hello.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+hello.config['MYSQL_DATABASE_HOST'] = '192.168.0.102'
+hello.config['MYSQL_DATABASE_USER'] = 'fin'
+hello.config['MYSQL_DATABASE_PASSWORD'] = 'password'
+hello.config['MYSQL_DATABASE_DB'] = 'myflaskapp'
+# hello.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+
 
 # init MySQL
 mysql = MySQL(hello)
@@ -105,15 +107,15 @@ def register():
         username = form.username.data
         password = sha256_crypt.encrypt(str(form.password.data))
 
-        # Create cursor
-        cur = mysql.connection.cursor()
+        conn = mysql.connect()
+        cur = conn.cursor()
 
         # Execute Query
         cur.execute("INSERT INTO users(name, email, username, password) VALUES(%s, %s, %s, %s)",
                     (name, email, username, password))
 
         # Commit to DB
-        mysql.connection.commit()
+        conn.commit()
 
         # Close connection
         cur.close()
@@ -133,7 +135,8 @@ def login():
         password_candidate = request.form['password']
 
         # Create cursor
-        cur = mysql.connection.cursor()
+        conn = mysql.connect()
+        cur = conn.cursor()
 
         # Get user by username
         result = cur.execute("SELECT * FROM users WHERE username = %s", [username])
@@ -170,7 +173,8 @@ def login():
 @is_admin
 def dashboard():
     # Create cursor
-    cur = mysql.connection.cursor()
+    conn = mysql.connect()
+    cur = conn.cursor()
 
     # Get Requests
     cur.execute("SELECT * FROM requests")
@@ -211,7 +215,8 @@ def add_request():
         number_of_days = (date_2 - date_1).days
 
         # Create Cursor
-        cur = mysql.connection.cursor()
+        conn = mysql.connect()
+        cur = conn.cursor()
 
         # Execute
         cur.execute("INSERT INTO requests(start, finish, author) VALUES(%s, %s, %s)",
@@ -221,7 +226,7 @@ def add_request():
                     ([number_of_days], [session['username']]))
 
         # Commit to DB
-        mysql.connection.commit()
+        conn.commit()
 
         # Close connection
         cur.close()
@@ -237,13 +242,14 @@ def add_request():
 @is_admin
 def approve_register(id):
     # Create cursor
-    cur = mysql.connection.cursor()
+    conn = mysql.connect()
+    cur = conn.cursor()
 
     # Execute
     cur.execute("UPDATE users SET role=1 WHERE id=%s", [id])
 
     # Commit to DB
-    mysql.connection.commit()
+    conn.commit()
 
     # Close connection
     cur.close()
@@ -257,7 +263,8 @@ def approve_register(id):
 @is_admin
 def approve_request(id):
     # Create cursor
-    cur = mysql.connection.cursor()
+    conn = mysql.connect()
+    cur = conn.cursor()
 
     # Execute
     cur.execute("UPDATE requests SET state='approved' WHERE id=%s", [id])
@@ -267,7 +274,7 @@ def approve_request(id):
     # cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [name])
 
     # Commit to DB
-    mysql.connection.commit()
+    conn.commit()
 
     # Close connection
     cur.close()
@@ -281,13 +288,14 @@ def approve_request(id):
 @is_admin
 def pending_request(id):
     # Create cursor
-    cur = mysql.connection.cursor()
+    conn = mysql.connect()
+    cur = conn.cursor()
 
     # Execute
     cur.execute("UPDATE requests SET state='pending' WHERE id=%s", [id])
 
     # Commit to DB
-    mysql.connection.commit()
+    conn.commit()
 
     # Close connection
     cur.close()
@@ -301,13 +309,14 @@ def pending_request(id):
 @is_admin
 def reject_register(id):
     # Create cursor
-    cur = mysql.connection.cursor()
+    conn = mysql.connect()
+    cur = conn.cursor()
 
     # Execute
     cur.execute("DELETE FROM users WHERE id=%s", [id])
 
     # Commit to DB
-    mysql.connection.commit()
+    conn.commit()
 
     # Close connection
     cur.close()
@@ -322,13 +331,14 @@ def reject_register(id):
 @is_admin
 def reject_request(id):
     # Create cursor
-    cur = mysql.connection.cursor()
+    conn = mysql.connect()
+    cur = conn.cursor()
 
     # Execute
     cur.execute("DELETE FROM requests WHERE id=%s", [id])
 
     # Commit to DB
-    mysql.connection.commit()
+    conn.commit()
 
     # Close connection
     cur.close()
@@ -343,13 +353,14 @@ def reject_request(id):
 @is_admin
 def promote_user(id):
     # Create cursor
-    cur = mysql.connection.cursor()
+    conn = mysql.connect()
+    cur = conn.cursor()
 
     # Execute
     cur.execute("UPDATE users SET role=2 WHERE id=%s", [id])
 
     # Commit to DB
-    mysql.connection.commit()
+    conn.commit()
 
     # Close connection
     cur.close()
@@ -364,13 +375,14 @@ def promote_user(id):
 @is_admin
 def demote_user(id):
     # Create cursor
-    cur = mysql.connection.cursor()
+    conn = mysql.connect()
+    cur = conn.cursor()
 
     # Execute
     cur.execute("UPDATE users SET role=0 WHERE id=%s", [id])
 
     # Commit to DB
-    mysql.connection.commit()
+    conn.commit()
 
     # Close connection
     cur.close()
