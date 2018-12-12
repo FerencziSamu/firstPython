@@ -59,7 +59,7 @@
         <entry file="file://$PROJECT_DIR$/hello.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="30">
-              <caret line="370" lean-forward="true" selection-start-line="370" selection-end-line="370" />
+              <caret line="370" selection-start-line="370" selection-end-line="370" />
               <folding>
                 <element signature="e#0#27#0" expanded="true" />
               </folding>
@@ -500,7 +500,7 @@
     <entry file="file://$PROJECT_DIR$/hello.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="30">
-          <caret line="370" lean-forward="true" selection-start-line="370" selection-end-line="370" />
+          <caret line="370" selection-start-line="370" selection-end-line="370" />
           <folding>
             <element signature="e#0#27#0" expanded="true" />
           </folding>
