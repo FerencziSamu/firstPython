@@ -5,6 +5,8 @@ from wtforms import Form, StringField, PasswordField, validators, DateField
 from passlib.hash import sha256_crypt
 from subprocess import call
 from _datetime import date
+import os
+
 
 hello = Flask(__name__)
 
@@ -392,4 +394,5 @@ def logout():
 
 if __name__ == '__main__':
     hello.secret_key = b'jz\x8dB\xf3\xeb\n\xe3\x9f\x9c\xf7\x8e\xc3"\x8d\x13\xf2\xb9\xd8QxQ6\xcf'
-    hello.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    hello.run(debug=True, host='127.0.0.1', port=port)
