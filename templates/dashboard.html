@@ -21,26 +21,26 @@
     </tr>
     {% for request in allrequests %}
     <tr>
-        <td>{{request.id}}</td>
-        <td>{{request.author}}</td>
-        <td>{{request.create_date}}</td>
-        <td>{{request.start}}</td>
-        <td>{{request.finish}}</td>
-        <td>{{request.state}}</td>
+        <td>{{request[0]}}</td>
+        <td>{{request[1]}}</td>
+        <td>{{request[2]}}</td>
+        <td>{{request[3]}}</td>
+        <td>{{request[4]}}</td>
+        <td>{{request[5]}}</td>
         <td>
-            <form action="{{url_for('approve_request', id=request.id)}}" method="post">
+            <form action="{{url_for('approve_request', id=request[0])}}" method="post">
                 <input type="hidden" name="_method" value="APPROVE">
                 <input type="submit" value="Approve" class="btn btn-success">
             </form>
         </td>
         <td>
-            <form action="{{url_for('pending_request', id=request.id)}}" method="post">
+            <form action="{{url_for('pending_request', id=request[0])}}" method="post">
                 <input type="hidden" name="_method" value="PENDING">
                 <input type="submit" value="Pending" class="btn btn-warning">
             </form>
         </td>
         <td>
-            <form action="{{url_for('reject_request', id=request.id)}}" method="post">
+            <form action="{{url_for('reject_request', id=request[0])}}" method="post">
                 <input type="hidden" name="_method" value="REJECT">
                 <input type="submit" value="Reject" class="btn btn-danger">
             </form>
@@ -52,7 +52,7 @@
 <table class="table table-striped">
     <tr>
         <th>ID</th>
-        <th>Name</th>
+        <th>Username</th>
         <th>Email</th>
         <th>Date of registration</th>
         <th></th>
@@ -60,18 +60,18 @@
     </tr>
     {% for user in registered %}
     <tr>
-        <td>{{user.id}}</td>
-        <td>{{user.name}}</td>
-        <td>{{user.email}}</td>
-        <td>{{user.register_date}}</td>
+        <td>{{user[0]}}</td>
+        <td>{{user[1]}}</td>
+        <td>{{user[2]}}</td>
+        <td>{{user[5]}}</td>
         <td>
-            <form action="{{url_for('approve_register', id=user.id)}}" method="post">
+            <form action="{{url_for('approve_register', id=user[0])}}" method="post">
                 <input type="hidden" name="_method" value="APPROVE">
                 <input type="submit" value="Approve" class="btn btn-success pull-right">
             </form>
         </td>
         <td>
-            <form action="{{url_for('reject_register', id=user.id)}}" method="post">
+            <form action="{{url_for('reject_register', id=user[0])}}" method="post">
                 <input type="hidden" name="_method" value="REJECT">
                 <input type="submit" value="Reject" class="btn btn-danger">
             </form>
@@ -83,7 +83,7 @@
 <table class="table table-striped">
     <tr>
         <th>ID</th>
-        <th>Name</th>
+        <th>Username</th>
         <th>Email</th>
         <th>Date of registration</th>
         <th></th>
@@ -91,18 +91,18 @@
     </tr>
     {% for user in employees %}
     <tr>
-        <td>{{user.id}}</td>
-        <td>{{user.name}}</td>
-        <td>{{user.email}}</td>
-        <td>{{user.register_date}}</td>
+        <td>{{user[0]}}</td>
+        <td>{{user[1]}}</td>
+        <td>{{user[2]}}</td>
+        <td>{{user[5]}}</td>
         <td>
-            <form action="{{url_for('promote_user', id=user.id)}}" method="post">
+            <form action="{{url_for('promote_user', id=user[0])}}" method="post">
                 <input type="hidden" name="_method" value="PROMOTE">
                 <input type="submit" value="Promote" class="btn btn-success pull-right">
             </form>
         </td>
         <td>
-            <form action="{{url_for('demote_user', id=user.id)}}" method="post">
+            <form action="{{url_for('demote_user', id=user[0])}}" method="post">
                 <input type="hidden" name="_method" value="DEMOTE">
                 <input type="submit" value="Demote" class="btn btn-danger">
             </form>

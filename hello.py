@@ -1,24 +1,53 @@
+import sqlite3
 from functools import wraps
 from flask import Flask, render_template, flash, redirect, url_for, session, request
-# from flask_mysqldb import MySQL
+from flask_sqlalchemy import SQLAlchemy
 from wtforms import Form, StringField, PasswordField, validators, DateField
 from passlib.hash import sha256_crypt
 from subprocess import call
-from _datetime import date
-from flaskext.mysql import MySQL
+from _datetime import date, datetime
+
 
 hello = Flask(__name__)
 
-# Config MySQL
-hello.config['MYSQL_DATABASE_HOST'] = '192.168.0.102'
-hello.config['MYSQL_DATABASE_USER'] = 'fin'
-hello.config['MYSQL_DATABASE_PASSWORD'] = 'password'
-hello.config['MYSQL_DATABASE_DB'] = 'myflaskapp'
-# hello.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+hello.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///flask_db.db'
+hello.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(hello)
 
 
-# init MySQL
-mysql = MySQL(hello)
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(30), nullable=False)
+    role = db.Column(db.Integer, nullable=False, default=0)
+    register_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow())
+    base_holidays = db.Column(db.Integer, nullable=False, default=25)
+    requested_holidays = db.Column(db.String(45), nullable=False, default=0)
+    remaining_holidays = db.Column(db.String(45), nullable=False, default=0)
+    token = db.Column(db.String(120), nullable=True)
+
+    def __repr__(self):
+        return '<User %r>' % self.username
+
+
+class Request(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    author = db.Column(db.String(80), unique=False, nullable=False)
+    create_date = db.Column(db.DateTime, unique=False, nullable=False, default=datetime.utcnow())
+    start = db.Column(db.DateTime, unique=False, nullable=False)
+    finish = db.Column(db.DateTime, unique=False, nullable=False)
+    state = db.Column(db.String(10), unique=False, nullable=False, default='Pending')
+
+    def __repr__(self):
+        return '<Request %r>' % self.id
+
+
+db.drop_all()
+db.create_all()
+Admin = User(username='Samu', email='Samu77@freemail.hu', password='$5$rounds=535000$v8ENd9SnMU.Hk2TL$gJSQnSV6ctx6Y7zIFwZcOMolR8DhWh.MVhdwTGOU.X9', role=2)
+db.session.add(Admin)
+db.session.commit()
 
 
 # Check if user logged in
@@ -89,7 +118,6 @@ def employee_widget():
 
 # Register Form Class
 class RegisterForm(Form):
-    name = StringField('Name', [validators.Length(min=1, max=50)])
     username = StringField('Username', [validators.Length(min=4, max=25)])
     email = StringField('Email', [validators.Length(min=6, max=50)])
     password = PasswordField('Password', [validators.DataRequired(),
@@ -102,23 +130,13 @@ class RegisterForm(Form):
 def register():
     form = RegisterForm(request.form)
     if request.method == 'POST' and form.validate():
-        name = form.name.data
         email = form.email.data
         username = form.username.data
         password = sha256_crypt.encrypt(str(form.password.data))
 
-        conn = mysql.connect()
-        cur = conn.cursor()
-
-        # Execute Query
-        cur.execute("INSERT INTO users(name, email, username, password) VALUES(%s, %s, %s, %s)",
-                    (name, email, username, password))
-
-        # Commit to DB
-        conn.commit()
-
-        # Close connection
-        cur.close()
+        user = User(username=username, email=email, password=password)
+        db.session.add(user)
+        db.session.commit()
 
         flash('You are now registered and can log in!', 'success')
 
@@ -135,17 +153,17 @@ def login():
         password_candidate = request.form['password']
 
         # Create cursor
-        conn = mysql.connect()
+        conn = sqlite3.connect('flask_db.db')
         cur = conn.cursor()
 
         # Get user by username
-        result = cur.execute("SELECT * FROM users WHERE username = %s", [username])
+        cur.execute("SELECT * FROM user WHERE username = ?", [username])
+        res = cur.fetchone()
 
-        if result > 0:
+        if res is not None:
             # Get stored hash
-            data = cur.fetchone()
-            password = data['password']
-            role = data['role']
+            password = res[3]
+            role = res[4]
 
             # Compare Passwords
             if sha256_crypt.verify(password_candidate, password):
@@ -157,7 +175,7 @@ def login():
                 flash('You are now logged in!', 'success')
                 return redirect(url_for('home'))
             else:
-                error = 'Invalid login'
+                error = 'Invalid password!'
                 return render_template('login.html', error=error)
             # Close connection
             cur.close()
@@ -173,19 +191,19 @@ def login():
 @is_admin
 def dashboard():
     # Create cursor
-    conn = mysql.connect()
+    conn = sqlite3.connect('flask_db.db')
     cur = conn.cursor()
 
     # Get Requests
-    cur.execute("SELECT * FROM requests")
+    cur.execute("SELECT * FROM request")
 
     allrequests = cur.fetchall()
 
-    cur.execute("SELECT * FROM users WHERE role=0")
+    cur.execute("SELECT * FROM user WHERE role=0")
 
     registered = cur.fetchall()
 
-    cur.execute("SELECT * FROM users WHERE role=1")
+    cur.execute("SELECT * FROM user WHERE role=1")
 
     employees = cur.fetchall()
 
@@ -214,22 +232,9 @@ def add_request():
         date_2 = date(finish.year, finish.month, finish.day)
         number_of_days = (date_2 - date_1).days
 
-        # Create Cursor
-        conn = mysql.connect()
-        cur = conn.cursor()
-
-        # Execute
-        cur.execute("INSERT INTO requests(start, finish, author) VALUES(%s, %s, %s)",
-                    (start, finish, session['username']))
-
-        cur.execute("UPDATE users SET requested_holidays=%s WHERE username=%s",
-                    ([number_of_days], [session['username']]))
-
-        # Commit to DB
-        conn.commit()
-
-        # Close connection
-        cur.close()
+        req = Request(author=session['username'], start=start, finish=finish)
+        db.session.add(req)
+        db.session.commit()
 
         flash('Request created', 'success')
         return redirect(url_for('add_request'))
@@ -242,11 +247,11 @@ def add_request():
 @is_admin
 def approve_register(id):
     # Create cursor
-    conn = mysql.connect()
+    conn = sqlite3.connect('flask_db.db')
     cur = conn.cursor()
 
     # Execute
-    cur.execute("UPDATE users SET role=1 WHERE id=%s", [id])
+    cur.execute("UPDATE user SET role=1 WHERE id=?", [id])
 
     # Commit to DB
     conn.commit()
@@ -263,14 +268,13 @@ def approve_register(id):
 @is_admin
 def approve_request(id):
     # Create cursor
-    conn = mysql.connect()
+    conn = sqlite3.connect('flask_db.db')
     cur = conn.cursor()
 
     # Execute
-    cur.execute("UPDATE requests SET state='approved' WHERE id=%s", [id])
-    cur.execute("SELECT author FROM requests WHERE id=%s", [id])
-    name = cur.fetchone()
-    print(name)
+    cur.execute("UPDATE request SET state='approved' WHERE id=?", [id])
+    cur.execute("SELECT author FROM request WHERE id=?", [id])
+
     # cur.execute("UPDATE users SET requested_holidays=0 WHERE username=%s", [name])
 
     # Commit to DB
@@ -288,11 +292,11 @@ def approve_request(id):
 @is_admin
 def pending_request(id):
     # Create cursor
-    conn = mysql.connect()
+    conn = sqlite3.connect('flask_db.db')
     cur = conn.cursor()
 
     # Execute
-    cur.execute("UPDATE requests SET state='pending' WHERE id=%s", [id])
+    cur.execute("UPDATE request SET state='pending' WHERE id=?", [id])
 
     # Commit to DB
     conn.commit()
@@ -309,11 +313,11 @@ def pending_request(id):
 @is_admin
 def reject_register(id):
     # Create cursor
-    conn = mysql.connect()
+    conn = sqlite3.connect('flask_db.db')
     cur = conn.cursor()
 
     # Execute
-    cur.execute("DELETE FROM users WHERE id=%s", [id])
+    cur.execute("DELETE FROM user WHERE id=?", [id])
 
     # Commit to DB
     conn.commit()
@@ -331,11 +335,11 @@ def reject_register(id):
 @is_admin
 def reject_request(id):
     # Create cursor
-    conn = mysql.connect()
+    conn = sqlite3.connect('flask_db.db')
     cur = conn.cursor()
 
     # Execute
-    cur.execute("DELETE FROM requests WHERE id=%s", [id])
+    cur.execute("DELETE FROM request WHERE id=?", [id])
 
     # Commit to DB
     conn.commit()
@@ -353,11 +357,11 @@ def reject_request(id):
 @is_admin
 def promote_user(id):
     # Create cursor
-    conn = mysql.connect()
+    conn = sqlite3.connect('flask_db.db')
     cur = conn.cursor()
 
     # Execute
-    cur.execute("UPDATE users SET role=2 WHERE id=%s", [id])
+    cur.execute("UPDATE user SET role=2 WHERE id=?", [id])
 
     # Commit to DB
     conn.commit()
@@ -375,11 +379,11 @@ def promote_user(id):
 @is_admin
 def demote_user(id):
     # Create cursor
-    conn = mysql.connect()
+    conn = sqlite3.connect('flask_db.db')
     cur = conn.cursor()
 
     # Execute
-    cur.execute("UPDATE users SET role=0 WHERE id=%s", [id])
+    cur.execute("UPDATE user SET role=0 WHERE id=?", [id])
 
     # Commit to DB
     conn.commit()
