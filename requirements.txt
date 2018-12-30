@@ -1,3 +1,4 @@
+requests
 mysql
 passlib
 wtforms
@@ -7,3 +8,6 @@ gunicorn==19.9.0
 mysql-connector-python==8.0.13
 protobuf==3.6.1
 six==1.11.0
+flask-login
+pyopenssl
+flask_oauthlib

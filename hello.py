@@ -6,9 +6,102 @@ from wtforms import Form, StringField, PasswordField, validators, DateField
 from passlib.hash import sha256_crypt
 from subprocess import call
 from _datetime import date, datetime
+from flask_login import LoginManager, login_user, current_user
+from requests_oauthlib import OAuth2Session
+from requests.exceptions import HTTPError
+import os
+import json
+
+# Google auth try
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+
+class Auth:
+    """Google Project Credentials"""
+    CLIENT_ID = '435293161538-4vhaau49erplvbs2pcdv9fsbob2aa726.apps.googleusercontent.com'
+    CLIENT_SECRET = 'CY1_FcYf4fbqwpwj3jzUL9bG'
+    REDIRECT_URI = 'https://127.0.0.1:5000/gCallback'
+    AUTH_URI = 'https://accounts.google.com/o/oauth2/auth'
+    TOKEN_URI = 'https://accounts.google.com/o/oauth2/token'
+    USER_INFO = 'https://www.googleapis.com/userinfo/v2/me'
+    SCOPE = ['profile', 'email']
+
+
+class Config:
+    """Base config"""
+    APP_NAME = "Holiday Manager"
+    SECRET_KEY = os.environ.get("SECRET_KEY") or "somethingsecret"
 
 
 hello = Flask(__name__)
+
+login_manager = LoginManager(hello)
+login_manager.login_view = "login"
+login_manager.session_protection = "strong"
+login_manager.init_app(hello)
+
+
+@hello.route('/gCallback')
+def callback():
+    if current_user is not None and current_user.is_authenticated:
+        return redirect(url_for('home'))
+    if 'error' in request.args:
+        if request.args.get('error') == 'access_denied':
+            return 'Access is denied.'
+        return 'Error encountered.'
+    if 'code' not in request.args and 'state' not in request.args:
+        return redirect(url_for('login'))
+    else:
+        google = get_google_auth(state=session['oauth_state'])
+        try:
+            token = google.fetch_token(
+                Auth.TOKEN_URI,
+                client_secret=Auth.CLIENT_SECRET,
+                authorization_response=request.url)
+        except HTTPError:
+            return 'HTTPError occurred.'
+        google = get_google_auth(token=token)
+        resp = google.get(Auth.USER_INFO)
+        if resp.status_code == 200:
+            user_data = resp.json()
+            email = user_data['email']
+            username = user_data['name']
+
+            # Execute Query
+            user = User(username=username, email=email)
+            db.session.add(user)
+            db.session.commit()
+
+            # flash('You are now registered and can log in!', 'success')
+            redirect(url_for('home'))
+
+            if user is None:
+                tokens = json.dumps(token)
+                name = user_data['name']
+
+                user = User(username=name, email=email, token=tokens)
+                db.session.add(user)
+                db.session.commit()
+
+            # login_user(user)
+            return redirect(url_for('home'))
+        return 'Could not fetch your information.'
+
+
+def get_google_auth(state=None, token=None):
+    if token:
+        return OAuth2Session(Auth.CLIENT_ID, token=token)
+    if state:
+        return OAuth2Session(
+            Auth.CLIENT_ID,
+            state=state,
+            redirect_uri=Auth.REDIRECT_URI)
+    oauth = OAuth2Session(
+        Auth.CLIENT_ID,
+        redirect_uri=Auth.REDIRECT_URI,
+        scope=Auth.SCOPE)
+    return oauth
+
 
 hello.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///flask_db.db'
 hello.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -19,7 +112,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(30), nullable=False)
+    password = db.Column(db.String(30), nullable=True)
     role = db.Column(db.Integer, nullable=False, default=0)
     register_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow())
     base_holidays = db.Column(db.Integer, nullable=False, default=25)
@@ -45,7 +138,8 @@ class Request(db.Model):
 
 db.drop_all()
 db.create_all()
-Admin = User(username='Samu', email='Samu77@freemail.hu', password='$5$rounds=535000$v8ENd9SnMU.Hk2TL$gJSQnSV6ctx6Y7zIFwZcOMolR8DhWh.MVhdwTGOU.X9', role=2)
+Admin = User(username='Samu', email='Samu77@freemail.hu',
+             password='$5$rounds=535000$v8ENd9SnMU.Hk2TL$gJSQnSV6ctx6Y7zIFwZcOMolR8DhWh.MVhdwTGOU.X9', role=2)
 db.session.add(Admin)
 db.session.commit()
 
@@ -182,6 +276,14 @@ def login():
         else:
             error = 'Username not found!'
             return render_template('login.html', error=error)
+    else:
+        if current_user.is_authenticated:
+            return redirect(url_for('index'))
+        google = get_google_auth()
+        auth_url, state = google.authorization_url(
+            Auth.AUTH_URI, access_type='offline')
+        session['oauth_state'] = state
+        return render_template('login.html', auth_url=auth_url)
 
     return render_template('login.html')
 
@@ -408,4 +510,4 @@ def logout():
 
 if __name__ == '__main__':
     hello.secret_key = b'jz\x8dB\xf3\xeb\n\xe3\x9f\x9c\xf7\x8e\xc3"\x8d\x13\xf2\xb9\xd8QxQ6\xcf'
-    hello.run(debug=True)
+    hello.run(debug=True, ssl_context='adhoc')
